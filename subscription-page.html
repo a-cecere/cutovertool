@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pricing — YourSaaS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --ink:        #0d0d0d;
+      --ink-mid:    #3a3a3a;
+      --ink-soft:   #7a7a7a;
+      --paper:      #f8f5ef;
+      --paper-card: #fefdfa;
+      --accent:     #c84b2f;
+      --accent-alt: #e8a020;
+      --border:     #dedad2;
+      --shadow:     rgba(13,13,13,0.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Noise texture overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      opacity: 0.5;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 48px;
+      background: rgba(248,245,239,0.88);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.45rem;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--accent); }
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a {
+      text-decoration: none; color: var(--ink-mid);
+      font-size: 0.88rem; font-weight: 500; letter-spacing: 0.01em;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--ink); }
+    .btn-nav {
+      background: var(--ink); color: #fff !important;
+      padding: 8px 20px; border-radius: 6px;
+      font-size: 0.84rem !important; font-weight: 600 !important;
+      transition: background 0.2s, transform 0.15s !important;
+    }
+    .btn-nav:hover { background: var(--accent) !important; transform: translateY(-1px); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative; z-index: 1;
+      text-align: center;
+      padding: 96px 24px 64px;
+      animation: fadeUp 0.7s ease both;
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      font-size: 0.78rem; font-weight: 600; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 5px 14px; border-radius: 100px; margin-bottom: 28px;
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.8rem, 6vw, 5rem);
+      line-height: 1.05; letter-spacing: -0.03em;
+      color: var(--ink); margin-bottom: 20px;
+    }
+    .hero h1 em { font-style: italic; color: var(--accent); }
+    .hero p {
+      max-width: 540px; margin: 0 auto;
+      font-size: 1.08rem; color: var(--ink-soft); line-height: 1.7; font-weight: 300;
+    }
+
+    /* ── TOGGLE ── */
+    .billing-toggle {
+      display: flex; align-items: center; justify-content: center;
+      gap: 14px; margin: 40px 0 56px;
+      animation: fadeUp 0.7s 0.15s ease both;
+      position: relative; z-index: 1;
+    }
+    .toggle-label { font-size: 0.9rem; font-weight: 500; color: var(--ink-mid); }
+    .toggle-wrap {
+      position: relative; width: 52px; height: 28px;
+      background: var(--border); border-radius: 100px; cursor: pointer;
+      transition: background 0.25s;
+    }
+    .toggle-wrap.active { background: var(--ink); }
+    .toggle-knob {
+      position: absolute; top: 3px; left: 3px;
+      width: 22px; height: 22px; border-radius: 50%; background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+      transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
+    }
+    .toggle-wrap.active .toggle-knob { transform: translateX(24px); }
+    .save-badge {
+      background: var(--accent-alt); color: #fff;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+      padding: 3px 9px; border-radius: 100px;
+    }
+
+    /* ── CARDS ── */
+    .cards-wrapper {
+      position: relative; z-index: 1;
+      display: flex; justify-content: center; align-items: stretch; flex-wrap: wrap;
+      gap: 24px; padding: 0 24px 100px; max-width: 1100px; margin: 0 auto;
+    }
+
+    .card {
+      background: var(--paper-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 40px 36px 36px;
+      flex: 1 1 280px; max-width: 340px;
+      display: flex; flex-direction: column;
+      position: relative; overflow: hidden;
+      box-shadow: 0 4px 24px var(--shadow);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      animation: fadeUp 0.7s ease both;
+    }
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 16px 48px rgba(13,13,13,0.12);
+    }
+    .card:nth-child(1) { animation-delay: 0.1s; }
+    .card:nth-child(2) { animation-delay: 0.2s; }
+    .card:nth-child(3) { animation-delay: 0.3s; }
+
+    /* Featured card */
+    .card.featured {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: #f8f5ef;
+      transform: scale(1.03);
+    }
+    .card.featured:hover { transform: scale(1.03) translateY(-6px); }
+    .card.featured .plan-name,
+    .card.featured .price-amount,
+    .card.featured .price-suffix,
+    .card.featured .feature-item { color: #e8e4dc; }
+    .card.featured .price-desc { color: #aaa69a; }
+    .card.featured .feature-item::before { color: var(--accent-alt); }
+    .card.featured hr { border-color: rgba(255,255,255,0.1); }
+
+    .featured-badge {
+      position: absolute; top: 0; right: 28px;
+      background: var(--accent);
+      color: #fff; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; padding: 5px 14px 6px;
+      border-radius: 0 0 10px 10px;
+    }
+
+    .plan-icon {
+      width: 42px; height: 42px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 20px; font-size: 1.3rem;
+    }
+    .card:not(.featured) .plan-icon { background: #f0ede6; }
+    .card.featured .plan-icon { background: rgba(255,255,255,0.1); }
+
+    .plan-name {
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--ink-soft); margin-bottom: 10px;
+    }
+
+    .price-row { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 6px; }
+    .price-amount {
+      font-family: 'DM Serif Display', serif;
+      font-size: 3.2rem; line-height: 1; letter-spacing: -0.03em; color: var(--ink);
+    }
+    .price-suffix { font-size: 0.88rem; font-weight: 400; color: var(--ink-soft); padding-bottom: 8px; }
+    .price-desc { font-size: 0.84rem; color: var(--ink-soft); margin-bottom: 28px; font-weight: 300; }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 0 0 24px; }
+
+    .features-list { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 36px; flex: 1; }
+    .feature-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 0.9rem; color: var(--ink-mid); font-weight: 400; line-height: 1.45;
+    }
+    .feature-item::before {
+      content: '✓';
+      color: var(--accent); font-weight: 700; font-size: 0.85rem;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .feature-item.muted { opacity: 0.4; }
+    .feature-item.muted::before { content: '–'; color: inherit; }
+
+    .btn-cta {
+      display: block; text-align: center; text-decoration: none;
+      padding: 14px 24px; border-radius: 10px;
+      font-size: 0.92rem; font-weight: 600; letter-spacing: 0.01em;
+      cursor: pointer; border: none; width: 100%;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.2s;
+    }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      box-shadow: 0 4px 18px rgba(200,75,47,0.28);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(200,75,47,0.38); }
+
+    .btn-outline {
+      background: transparent; color: var(--ink);
+      border: 1.5px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--ink); transform: translateY(-2px); }
+
+    .card.featured .btn-outline {
+      border-color: rgba(255,255,255,0.3); color: #fff;
+    }
+    .card.featured .btn-outline:hover { border-color: #fff; }
+
+    /* ── TRUST BAR ── */
+    .trust-bar {
+      position: relative; z-index: 1;
+      display: flex; justify-content: center; align-items: center;
+      gap: 40px; flex-wrap: wrap;
+      padding: 28px 24px;
+      border-top: 1px solid var(--border);
+      animation: fadeUp 0.7s 0.4s ease both;
+    }
+    .trust-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.83rem; color: var(--ink-soft); font-weight: 400;
+    }
+    .trust-item svg { opacity: 0.5; }
+
+    /* ── FAQ ── */
+    .faq-section {
+      position: relative; z-index: 1;
+      max-width: 680px; margin: 0 auto;
+      padding: 64px 24px 96px;
+      animation: fadeUp 0.7s 0.5s ease both;
+    }
+    .faq-section h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2.1rem; letter-spacing: -0.02em;
+      text-align: center; margin-bottom: 40px;
+    }
+    .faq-item { border-top: 1px solid var(--border); }
+    .faq-item:last-child { border-bottom: 1px solid var(--border); }
+    .faq-q {
+      width: 100%; background: none; border: none; cursor: pointer;
+      text-align: left; padding: 20px 0;
+      font-family: 'DM Sans', sans-serif; font-size: 0.96rem; font-weight: 600;
+      color: var(--ink); display: flex; justify-content: space-between; align-items: center;
+    }
+    .faq-q .arrow { transition: transform 0.25s; font-size: 1.1rem; color: var(--ink-soft); }
+    .faq-item.open .arrow { transform: rotate(45deg); }
+    .faq-a {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      font-size: 0.9rem; color: var(--ink-soft); line-height: 1.75;
+    }
+    .faq-item.open .faq-a { max-height: 200px; padding-bottom: 20px; }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 28px 48px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    footer p { font-size: 0.82rem; color: var(--ink-soft); }
+    footer nav a { font-size: 0.82rem; color: var(--ink-soft); text-decoration: none; margin-left: 20px; }
+    footer nav a:hover { color: var(--ink); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 720px) {
+      nav { padding: 14px 20px; }
+      .nav-links { display: none; }
+      .hero { padding: 64px 20px 40px; }
+      .card.featured { transform: none; }
+      .card.featured:hover { transform: translateY(-6px); }
+      footer { flex-direction: column; text-align: center; padding: 24px 20px; }
+      footer nav a { margin: 0 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">Your<span>SaaS</span></a>
+  <div class="nav-links">
+    <a href="#">Product</a>
+    <a href="#">Docs</a>
+    <a href="#">Blog</a>
+    <a href="#" class="btn-nav">Sign in</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <span class="hero-eyebrow">Simple, transparent pricing</span>
+  <h1>The right plan for<br/><em>every stage</em> of growth</h1>
+  <p>Start free, scale when you're ready. No hidden fees, no surprises — cancel any time.</p>
+</section>
+
+<!-- BILLING TOGGLE -->
+<div class="billing-toggle">
+  <span class="toggle-label">Monthly</span>
+  <div class="toggle-wrap" id="billingToggle" onclick="toggleBilling()">
+    <div class="toggle-knob"></div>
+  </div>
+  <span class="toggle-label">Annual</span>
+  <span class="save-badge">Save 20%</span>
+</div>
+
+<!-- PRICING CARDS -->
+<div class="cards-wrapper">
+
+  <!-- FREE -->
+  <div class="card">
+    <div class="plan-icon">🌱</div>
+    <p class="plan-name">Free</p>
+    <div class="price-row">
+      <span class="price-amount">$0</span>
+      <span class="price-suffix">&nbsp;/ mo</span>
+    </div>
+    <p class="price-desc">Forever free. No credit card required.</p>
+    <hr/>
+    <ul class="features-list">
+      <li class="feature-item">Up to 3 projects</li>
+      <li class="feature-item">1 team member</li>
+      <li class="feature-item">5 GB storage</li>
+      <li class="feature-item">Community support</li>
+      <li class="feature-item muted">Custom domain</li>
+      <li class="feature-item muted">Priority support</li>
+      <li class="feature-item muted">SSO / SAML</li>
+    </ul>
+    <a href="#" class="btn-cta btn-outline">Get started free</a>
+  </div>
+
+  <!-- BASIC — FEATURED -->
+  <div class="card featured">
+    <div class="featured-badge">Most popular</div>
+    <div class="plan-icon">⚡</div>
+    <p class="plan-name">Basic</p>
+    <div class="price-row">
+      <span class="price-amount" id="basicPrice">$29</span>
+      <span class="price-suffix">&nbsp;/ mo</span>
+    </div>
+    <p class="price-desc" id="basicDesc">Billed monthly. Cancel anytime.</p>
+    <hr/>
+    <ul class="features-list">
+      <li class="feature-item">Unlimited projects</li>
+      <li class="feature-item">Up to 10 team members</li>
+      <li class="feature-item">50 GB storage</li>
+      <li class="feature-item">Email &amp; chat support</li>
+      <li class="feature-item">Custom domain</li>
+      <li class="feature-item">Advanced analytics</li>
+      <li class="feature-item muted">SSO / SAML</li>
+    </ul>
+    <a href="#" class="btn-cta btn-primary">Start 14-day free trial</a>
+  </div>
+
+  <!-- ENTERPRISE -->
+  <div class="card">
+    <div class="plan-icon">🏢</div>
+    <p class="plan-name">Enterprise</p>
+    <div class="price-row">
+      <span class="price-amount">Custom</span>
+    </div>
+    <p class="price-desc">Volume discounts, dedicated infra &amp; SLA.</p>
+    <hr/>
+    <ul class="features-list">
+      <li class="feature-item">Everything in Basic</li>
+      <li class="feature-item">Unlimited team members</li>
+      <li class="feature-item">Unlimited storage</li>
+      <li class="feature-item">Dedicated success manager</li>
+      <li class="feature-item">SSO / SAML</li>
+      <li class="feature-item">Custom SLA &amp; uptime</li>
+      <li class="feature-item">On-prem / private cloud option</li>
+    </ul>
+    <a href="mailto:sales@yoursaas.com" class="btn-cta btn-outline">Contact sales</a>
+  </div>
+
+</div>
+
+<!-- TRUST BAR -->
+<div class="trust-bar">
+  <div class="trust-item">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    SOC 2 Type II compliant
+  </div>
+  <div class="trust-item">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    99.9% uptime SLA
+  </div>
+  <div class="trust-item">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2"/></svg>
+    Cancel any time
+  </div>
+  <div class="trust-item">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+    Secure payments via Stripe
+  </div>
+</div>
+
+<!-- FAQ -->
+<section class="faq-section">
+  <h2>Common questions</h2>
+
+  <div class="faq-item">
+    <button class="faq-q" onclick="toggleFaq(this)">
+      Can I switch plans later? <span class="arrow">+</span>
+    </button>
+    <div class="faq-a">Yes — you can upgrade or downgrade your plan at any time. Changes take effect immediately on upgrades, and at the end of the billing cycle on downgrades.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q" onclick="toggleFaq(this)">
+      Do you offer a free trial for the Basic plan? <span class="arrow">+</span>
+    </button>
+    <div class="faq-a">Absolutely. Every Basic signup includes a 14-day free trial — no credit card required. You'll only be charged if you decide to continue.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q" onclick="toggleFaq(this)">
+      What payment methods do you accept? <span class="arrow">+</span>
+    </button>
+    <div class="faq-a">We accept all major credit and debit cards (Visa, Mastercard, Amex), as well as ACH bank transfers for annual Enterprise contracts. Payments are processed securely through Stripe.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q" onclick="toggleFaq(this)">
+      What does the Enterprise plan include exactly? <span class="arrow">+</span>
+    </button>
+    <div class="faq-a">Enterprise is fully custom — pricing and features are tailored to your organization's size, infrastructure needs, compliance requirements, and support level. Reach out to our sales team to get a quote.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q" onclick="toggleFaq(this)">
+      Is my data secure? <span class="arrow">+</span>
+    </button>
+    <div class="faq-a">Yes. We are SOC 2 Type II certified, encrypt all data in transit (TLS 1.3) and at rest (AES-256), and undergo annual third-party security audits. Enterprise customers can also opt for private cloud or on-premise deployment.</div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>© 2026 YourSaaS, Inc. All rights reserved.</p>
+  <nav>
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+    <a href="#">Status</a>
+    <a href="#">Contact</a>
+  </nav>
+</footer>
+
+<script>
+  /* ── Billing Toggle ── */
+  const monthlyPrices = { basic: '$29' };
+  const annualPrices  = { basic: '$23' };
+  let isAnnual = false;
+
+  function toggleBilling() {
+    isAnnual = !isAnnual;
+    const toggle = document.getElementById('billingToggle');
+    toggle.classList.toggle('active', isAnnual);
+
+    const basicPrice = document.getElementById('basicPrice');
+    const basicDesc  = document.getElementById('basicDesc');
+
+    if (isAnnual) {
+      basicPrice.textContent = annualPrices.basic;
+      basicDesc.textContent  = 'Billed annually ($276/yr). Cancel anytime.';
+    } else {
+      basicPrice.textContent = monthlyPrices.basic;
+      basicDesc.textContent  = 'Billed monthly. Cancel anytime.';
+    }
+  }
+
+  /* ── FAQ Accordion ── */
+  function toggleFaq(btn) {
+    const item = btn.closest('.faq-item');
+    const isOpen = item.classList.contains('open');
+
+    // Close all
+    document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+
+    // Open clicked (unless it was already open)
+    if (!isOpen) item.classList.add('open');
+  }
+</script>
+</body>
+</html>

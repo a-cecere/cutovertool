@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TaskGrid — Task Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --excel-green:     #217346;
+  --excel-green-lt:  #2e9e5e;
+  --excel-green-dk:  #185c37;
+  --ribbon-bg:       #f3f2f1;
+  --ribbon-border:   #d0cece;
+  --cell-border:     #d0cece;
+  --header-bg:       #e6f0ea;
+  --header-text:     #1d3a27;
+  --row-even:        #ffffff;
+  --row-odd:         #f9fef9;
+  --row-hover:       #edf7f1;
+  --row-selected:    #c6e8d0;
+  --sel-border:      #217346;
+  --text-main:       #1a1a1a;
+  --text-mid:        #444;
+  --text-soft:       #888;
+  --input-focus:     #217346;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.18);
+  --panel-w: 420px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Libre Franklin',sans-serif;font-size:13px;color:var(--text-main);background:#f3f2f1;display:flex;flex-direction:column;}
+
+/* TITLE BAR */
+.title-bar{background:var(--excel-green);color:#fff;display:flex;align-items:center;gap:12px;padding:0 16px;height:40px;flex-shrink:0;user-select:none;}
+.title-bar .app-name{font-size:13px;font-weight:600;letter-spacing:0.02em;flex:1;}
+.title-bar .doc-name{font-size:12px;color:rgba(255,255,255,0.75);font-weight:300;}
+.win-btn{width:46px;height:40px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.85);cursor:pointer;font-size:11px;transition:background 0.15s;}
+.win-btn:hover{background:rgba(255,255,255,0.15);}
+.win-btn.close:hover{background:#c42b1c;}
+
+/* RIBBON */
+.ribbon{background:var(--ribbon-bg);border-bottom:1px solid var(--ribbon-border);padding:6px 12px;display:flex;align-items:center;gap:4px;flex-shrink:0;flex-wrap:wrap;}
+.ribbon-group{display:flex;align-items:center;gap:3px;padding-right:12px;border-right:1px solid var(--ribbon-border);margin-right:4px;}
+.ribbon-group:last-child{border-right:none;}
+.rb-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 8px;border-radius:4px;border:none;background:transparent;cursor:pointer;color:var(--text-mid);font-family:'Libre Franklin',sans-serif;font-size:10px;font-weight:500;min-width:44px;height:52px;transition:background 0.15s,box-shadow 0.1s;position:relative;}
+.rb-btn:hover{background:#e5e3e0;box-shadow:var(--shadow-sm);}
+.rb-btn.active{background:#c8e6ce;color:var(--excel-green-dk);}
+.rb-btn svg{width:20px;height:20px;}
+.rb-btn-sm{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:4px;border:none;background:transparent;cursor:pointer;color:var(--text-mid);font-family:'Libre Franklin',sans-serif;font-size:12px;height:28px;white-space:nowrap;transition:background 0.15s;}
+.rb-btn-sm:hover{background:#e5e3e0;}
+.rb-btn-sm.active{background:#c8e6ce;color:var(--excel-green-dk);}
+.rb-btn-sm svg{width:14px;height:14px;flex-shrink:0;}
+.notif-badge{position:absolute;top:4px;right:4px;background:#c42b1c;color:#fff;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.ribbon-search{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--cell-border);border-radius:4px;padding:4px 10px;height:28px;margin-left:auto;}
+.ribbon-search input{border:none;outline:none;font-family:'Libre Franklin',sans-serif;font-size:12px;width:180px;color:var(--text-main);}
+.ribbon-search svg{width:13px;height:13px;color:var(--text-soft);}
+
+/* FORMULA BAR */
+.formula-bar{display:flex;align-items:center;background:#fff;border-bottom:1px solid var(--cell-border);height:28px;flex-shrink:0;}
+.formula-cell-ref{width:120px;padding:0 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-mid);border-right:1px solid var(--cell-border);height:100%;display:flex;align-items:center;flex-shrink:0;}
+.formula-content{flex:1;padding:0 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-main);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:flex;align-items:center;}
+
+/* BODY */
+.body-layout{flex:1;display:flex;overflow:hidden;}
+.grid-area{flex:1;overflow:auto;position:relative;}
+.grid-container{position:relative;min-width:100%;}
+
+/* TABLE */
+table{border-collapse:collapse;width:100%;table-layout:fixed;}
+col.c-num{width:70px;}col.c-desc{width:280px;}col.c-p1{width:160px;}col.c-p2{width:160px;}
+col.c-pre{width:90px;}col.c-stat{width:120px;}col.c-date{width:110px;}col.c-time{width:90px;}
+col.c-dur{width:110px;}col.c-notif{width:220px;}col.c-actions{width:60px;}
+th.rn,td.rn{background:#f3f2f1;border:1px solid var(--cell-border);width:40px;min-width:40px;max-width:40px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-soft);user-select:none;position:sticky;left:0;z-index:3;}
+th.rn{background:#e8e6e3;z-index:5;}
+thead th{background:var(--header-bg);border:1px solid var(--cell-border);padding:7px 8px;font-size:11px;font-weight:600;color:var(--header-text);text-align:left;white-space:nowrap;position:sticky;top:0;z-index:4;user-select:none;cursor:pointer;}
+thead th:first-child{left:0;z-index:6;}
+thead th .col-header{display:flex;align-items:center;gap:4px;}
+thead th .sort-icon{font-size:9px;color:var(--text-soft);}
+tbody tr{transition:background 0.1s;}
+tbody tr:nth-child(even) td{background:var(--row-even);}
+tbody tr:nth-child(odd) td{background:var(--row-odd);}
+tbody tr:hover td{background:var(--row-hover);}
+tbody tr.selected td{background:var(--row-selected);}
+tbody tr.selected td.rn{background:#a8d8b9;}
+tbody tr.due-soon td{border-left:3px solid #d4a017 !important;}
+tbody tr.overdue td{border-left:3px solid #c42b1c !important;}
+td{border:1px solid var(--cell-border);padding:0;vertical-align:middle;height:32px;overflow:hidden;position:relative;}
+td.selected-cell{outline:2px solid var(--sel-border);outline-offset:-2px;z-index:2;}
+.cell-inner{width:100%;height:100%;padding:4px 8px;display:flex;align-items:center;font-size:12px;color:var(--text-main);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:cell;}
+.cell-inner.task-num{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--excel-green-dk);justify-content:center;}
+.cell-inner.prereq{font-family:'JetBrains Mono',monospace;font-size:11px;color:#0563c1;text-decoration:underline;cursor:pointer;}
+.cell-input{width:100%;height:100%;padding:4px 8px;border:none;outline:none;background:transparent;font-family:'Libre Franklin',sans-serif;font-size:12px;color:var(--text-main);}
+.cell-input:focus{background:#fffde7;outline:2px solid var(--input-focus);outline-offset:-2px;}
+select.cell-select{width:100%;height:100%;padding:4px 8px;border:none;outline:none;background:transparent;font-family:'Libre Franklin',sans-serif;font-size:12px;color:var(--text-main);cursor:pointer;appearance:none;}
+select.cell-select:focus{background:#fffde7;outline:2px solid var(--input-focus);outline-offset:-2px;}
+tr.add-row td{background:#f9fef9;border-color:#e8e8e8;}
+tr.add-row .add-row-btn{width:100%;height:100%;display:flex;align-items:center;gap:6px;padding:4px 8px;color:var(--text-soft);font-size:11px;cursor:pointer;border:none;background:none;font-family:'Libre Franklin',sans-serif;}
+tr.add-row .add-row-btn:hover{color:var(--excel-green);background:#edf7f1;}
+.row-actions{display:flex;align-items:center;justify-content:center;gap:4px;height:100%;padding:2px;opacity:0;transition:opacity 0.15s;}
+tbody tr:hover .row-actions{opacity:1;}
+.icon-btn{width:24px;height:24px;border-radius:3px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-soft);transition:background 0.15s,color 0.15s;}
+.icon-btn:hover{background:#e5e3e0;color:var(--text-main);}
+.icon-btn.delete:hover{background:#fce8e8;color:#c42b1c;}
+.icon-btn.notif-btn:hover{background:#fff3cd;color:#7a5400;}
+.icon-btn svg{width:13px;height:13px;}
+
+/* SIDE PANEL */
+.side-panel{width:var(--panel-w);border-left:1px solid var(--ribbon-border);background:#fff;display:flex;flex-direction:column;flex-shrink:0;transform:translateX(var(--panel-w));transition:transform 0.25s ease;overflow:hidden;}
+.side-panel.open{transform:translateX(0);}
+.panel-tabs{display:flex;border-bottom:1px solid var(--cell-border);flex-shrink:0;}
+.panel-tab{flex:1;padding:10px 0;text-align:center;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Libre Franklin',sans-serif;}
+.panel-tab:hover{color:var(--text-main);}
+.panel-tab.active{color:var(--excel-green-dk);border-bottom-color:var(--excel-green);}
+.panel-body{flex:1;overflow-y:auto;padding:0;}
+
+/* LOG */
+.log-toolbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--cell-border);background:#f9fef9;flex-shrink:0;}
+.log-toolbar span{font-size:11px;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.05em;}
+.log-clear-btn{font-size:11px;color:#c42b1c;cursor:pointer;background:none;border:none;font-family:'Libre Franklin',sans-serif;padding:2px 6px;border-radius:3px;}
+.log-clear-btn:hover{background:#fce8e8;}
+.log-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:var(--text-soft);font-size:12px;gap:8px;}
+.log-empty svg{width:32px;height:32px;opacity:0.3;}
+.log-entry{padding:12px 14px;border-bottom:1px solid #f0f0f0;display:flex;gap:10px;align-items:flex-start;}
+.log-entry:hover{background:#f9fef9;}
+.log-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;}
+.log-icon.sent{background:#d4edda;}
+.log-icon.failed{background:#f8d7da;}
+.log-icon.queued{background:#fff3cd;}
+.log-content{flex:1;min-width:0;}
+.log-title{font-size:12px;font-weight:600;color:var(--text-main);margin-bottom:2px;}
+.log-meta{font-size:11px;color:var(--text-soft);line-height:1.5;}
+.log-time{font-size:10px;color:var(--text-soft);font-family:'JetBrains Mono',monospace;white-space:nowrap;margin-top:2px;}
+.log-badge{display:inline-block;font-size:10px;font-weight:600;padding:1px 7px;border-radius:100px;margin-left:6px;}
+.log-badge.sent{background:#d4edda;color:#155724;}
+.log-badge.failed{background:#f8d7da;color:#721c24;}
+.log-badge.queued{background:#fff3cd;color:#7a5400;}
+
+/* SETTINGS */
+.settings-section{padding:16px 14px;border-bottom:1px solid var(--cell-border);}
+.settings-section h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-soft);margin-bottom:12px;}
+.settings-row{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.settings-row:last-child{margin-bottom:0;}
+.settings-row label{font-size:11px;font-weight:600;color:var(--text-mid);}
+.settings-row input{border:1px solid var(--cell-border);border-radius:4px;padding:7px 10px;font-family:'Libre Franklin',sans-serif;font-size:12px;color:var(--text-main);outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
+.settings-row input:focus{border-color:var(--excel-green);box-shadow:0 0 0 3px rgba(33,115,70,0.12);}
+.settings-row .hint{font-size:10px;color:var(--text-soft);line-height:1.5;}
+.settings-row .hint a{color:var(--excel-green);text-decoration:none;}
+.settings-row .hint a:hover{text-decoration:underline;}
+.ejs-status{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:500;margin-bottom:14px;}
+.ejs-status.ok{background:#d4edda;color:#155724;}
+.ejs-status.warn{background:#fff3cd;color:#7a5400;}
+.ejs-status svg{width:14px;height:14px;flex-shrink:0;}
+.settings-save-btn{width:100%;padding:9px;background:var(--excel-green);color:#fff;border:none;border-radius:4px;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s;margin-top:4px;}
+.settings-save-btn:hover{background:var(--excel-green-lt);}
+.settings-save-btn.secondary{background:#444;}
+.settings-save-btn.secondary:hover{background:#222;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;}
+.toggle-row label{font-size:12px;color:var(--text-mid);}
+.toggle-sw{width:36px;height:20px;background:var(--cell-border);border-radius:100px;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0;}
+.toggle-sw.on{background:var(--excel-green);}
+.toggle-sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform 0.2s cubic-bezier(.34,1.56,.64,1);}
+.toggle-sw.on::after{transform:translateX(16px);}
+.test-btn{width:100%;padding:8px;background:#fff;color:var(--excel-green-dk);border:1.5px solid var(--excel-green);border-radius:4px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:background 0.15s;display:flex;align-items:center;justify-content:center;gap:6px;}
+.test-btn:hover{background:#edf7f1;}
+.test-btn svg{width:14px;height:14px;}
+.code-box{font-size:10px;color:var(--text-mid);line-height:1.9;font-family:'JetBrains Mono',monospace;background:#f9f9f9;padding:10px;border-radius:4px;border:1px solid var(--cell-border);}
+
+/* STATUS BAR */
+.status-bar{background:#e8e6e3;border-top:1px solid var(--ribbon-border);height:22px;display:flex;align-items:center;gap:24px;padding:0 12px;flex-shrink:0;font-size:11px;color:var(--text-soft);}
+.status-bar span b{color:var(--text-main);font-weight:600;}
+.ejs-indicator{margin-left:auto;display:flex;align-items:center;gap:5px;}
+.ind-dot{width:6px;height:6px;border-radius:50%;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:#fff;border-radius:6px;box-shadow:var(--shadow-lg);width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;transform:translateY(-20px);transition:transform 0.2s;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-header{background:var(--excel-green);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:14px;border-radius:6px 6px 0 0;}
+.modal-close{background:none;border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1;opacity:0.8;}
+.modal-close:hover{opacity:1;}
+.modal-body{padding:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-grid .full{grid-column:1/-1;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group label{font-size:11px;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.05em;}
+.form-group input,.form-group select,.form-group textarea{border:1px solid var(--cell-border);border-radius:4px;padding:7px 10px;font-family:'Libre Franklin',sans-serif;font-size:13px;color:var(--text-main);outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--excel-green);box-shadow:0 0 0 3px rgba(33,115,70,0.12);}
+.form-group textarea{resize:vertical;min-height:64px;}
+.notif-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.notif-tag{display:flex;align-items:center;gap:4px;background:#e6f0ea;border:1px solid #b0d8be;border-radius:100px;padding:3px 10px;font-size:11px;color:var(--excel-green-dk);}
+.notif-tag button{background:none;border:none;cursor:pointer;color:var(--excel-green-dk);font-size:13px;line-height:1;}
+.notif-input-row{display:flex;gap:6px;margin-top:6px;}
+.notif-input-row input{flex:1;}
+.notif-input-row button{background:var(--excel-green);color:#fff;border:none;border-radius:4px;padding:7px 14px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;}
+.notif-input-row button:hover{background:var(--excel-green-lt);}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--cell-border);display:flex;justify-content:flex-end;gap:10px;}
+.btn-cancel{padding:7px 18px;border-radius:4px;border:1px solid var(--cell-border);background:#fff;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-size:13px;color:var(--text-mid);}
+.btn-cancel:hover{background:#f0f0f0;}
+.btn-save{padding:7px 22px;border-radius:4px;border:none;background:var(--excel-green);color:#fff;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;}
+.btn-save:hover{background:var(--excel-green-lt);}
+
+/* PREREQ FLASH */
+.prereq-highlight{animation:prereqFlash 1.2s ease;}
+@keyframes prereqFlash{0%{background:#fffde7;}30%{background:#fff59d;}100%{background:inherit;}}
+
+/* TOAST */
+.toast-container{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);z-index:2000;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast{background:#1d3a27;color:#fff;padding:10px 20px;border-radius:6px;font-size:12px;font-weight:500;box-shadow:var(--shadow-md);animation:toastIn 0.25s ease,toastOut 0.3s 2.7s ease forwards;white-space:nowrap;}
+.toast.error{background:#721c24;}
+.toast.warning{background:#7a5400;}
+.toast.info{background:#0c5460;}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+@keyframes toastOut{from{opacity:1;}to{opacity:0;}}
+
+/* SCROLLBARS */
+.grid-area::-webkit-scrollbar,.panel-body::-webkit-scrollbar{width:10px;height:10px;}
+.grid-area::-webkit-scrollbar-track,.panel-body::-webkit-scrollbar-track{background:#f3f2f1;}
+.grid-area::-webkit-scrollbar-thumb,.panel-body::-webkit-scrollbar-thumb{background:#c8c8c8;border-radius:5px;border:2px solid #f3f2f1;}
+.grid-area::-webkit-scrollbar-thumb:hover,.panel-body::-webkit-scrollbar-thumb:hover{background:#adadad;}
+</style>
+</head>
+<body>
+
+<!-- TITLE BAR -->
+<div class="title-bar">
+  <span style="font-size:18px">🗂️</span>
+  <span class="app-name">TaskGrid</span>
+  <span class="doc-name">task_manager.tgx</span>
+  <div style="flex:1"></div>
+  <div style="display:flex">
+    <div class="win-btn">─</div><div class="win-btn">□</div><div class="win-btn close">✕</div>
+  </div>
+</div>
+
+<!-- RIBBON -->
+<div class="ribbon">
+  <div class="ribbon-group">
+    <button class="rb-btn" onclick="openAddModal()" title="New Task (Ctrl+N)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>New Task
+    </button>
+    <button class="rb-btn" onclick="deleteSelectedRows()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Delete
+    </button>
+  </div>
+  <div class="ribbon-group">
+    <button class="rb-btn" id="logRibbonBtn" onclick="togglePanel('log')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+      Notif Log
+      <span class="notif-badge" id="unreadBadge" style="display:none">0</span>
+    </button>
+    <button class="rb-btn" id="settingsRibbonBtn" onclick="togglePanel('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </button>
+    <button class="rb-btn-sm" onclick="notifyAll()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 004-2.83V9a6 6 0 0112 0v5.17A3 3 0 0022 17zM13.73 21a2 2 0 01-3.46 0"/></svg>Notify All
+    </button>
+  </div>
+  <div class="ribbon-group">
+    <button class="rb-btn-sm" onclick="exportCSV()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export CSV
+    </button>
+  </div>
+  <div class="ribbon-group">
+    <button class="rb-btn-sm" onclick="filterByStatus('')" id="fAll">All</button>
+    <button class="rb-btn-sm" onclick="filterByStatus('Not Started')" id="fNS">Not Started</button>
+    <button class="rb-btn-sm" onclick="filterByStatus('In Progress')" id="fIP">In Progress</button>
+    <button class="rb-btn-sm" onclick="filterByStatus('Completed')" id="fDone">Completed</button>
+    <button class="rb-btn-sm" onclick="filterByStatus('Blocked')" id="fBL">Blocked</button>
+  </div>
+  <div class="ribbon-search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input id="searchInput" placeholder="Search tasks…" oninput="renderTable()"/>
+  </div>
+</div>
+
+<!-- FORMULA BAR -->
+<div class="formula-bar">
+  <div class="formula-cell-ref" id="cellRef">A1</div>
+  <div class="formula-content" id="formulaContent">—</div>
+</div>
+
+<!-- BODY -->
+<div class="body-layout">
+  <div class="grid-area" id="gridArea">
+    <div class="grid-container">
+      <table id="taskTable">
+        <colgroup>
+          <col style="width:40px"/>
+          <col class="c-num"/><col class="c-desc"/><col class="c-p1"/><col class="c-p2"/>
+          <col class="c-pre"/><col class="c-stat"/><col class="c-date"/><col class="c-time"/>
+          <col class="c-dur"/><col class="c-notif"/><col class="c-actions"/>
+        </colgroup>
+        <thead><tr>
+          <th class="rn">#</th>
+          <th onclick="sortBy('id')"><div class="col-header">Task # <span class="sort-icon" id="sort-id">⇅</span></div></th>
+          <th onclick="sortBy('desc')"><div class="col-header">Task Description <span class="sort-icon" id="sort-desc">⇅</span></div></th>
+          <th onclick="sortBy('person1')"><div class="col-header">Person Responsible <span class="sort-icon" id="sort-person1">⇅</span></div></th>
+          <th onclick="sortBy('person2')"><div class="col-header">Secondary Responsible <span class="sort-icon" id="sort-person2">⇅</span></div></th>
+          <th onclick="sortBy('prereq')"><div class="col-header">Prereq # <span class="sort-icon" id="sort-prereq">⇅</span></div></th>
+          <th onclick="sortBy('status')"><div class="col-header">Status <span class="sort-icon" id="sort-status">⇅</span></div></th>
+          <th onclick="sortBy('date')"><div class="col-header">Date <span class="sort-icon" id="sort-date">⇅</span></div></th>
+          <th onclick="sortBy('time')"><div class="col-header">Time <span class="sort-icon" id="sort-time">⇅</span></div></th>
+          <th onclick="sortBy('duration')"><div class="col-header">Est. Duration <span class="sort-icon" id="sort-duration">⇅</span></div></th>
+          <th onclick="sortBy('notifGroup')"><div class="col-header">Notification Group <span class="sort-icon" id="sort-notifGroup">⇅</span></div></th>
+          <th style="text-align:center;cursor:default;">Actions</th>
+        </tr></thead>
+        <tbody id="taskBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div class="side-panel" id="sidePanel">
+    <div class="panel-tabs">
+      <button class="panel-tab active" id="tabLog" onclick="switchTab('log')">📋 Notification Log</button>
+      <button class="panel-tab" id="tabSettings" onclick="switchTab('settings')">⚙️ Email Settings</button>
+    </div>
+    <div class="panel-body" id="panelBody"></div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <span>Tasks: <b id="sbTotal">0</b></span>
+  <span>Not Started: <b id="sbNS">0</b></span>
+  <span>In Progress: <b id="sbIP">0</b></span>
+  <span>Completed: <b id="sbDone">0</b></span>
+  <span>Blocked: <b id="sbBL">0</b></span>
+  <span class="ejs-indicator">
+    <span class="ind-dot" id="ejsDot" style="background:#ccc"></span>
+    <span id="ejsStatusText">EmailJS: Not configured</span>
+  </span>
+</div>
+
+<!-- TASK MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modalTitle">New Task</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Task Description *</label><textarea id="fDesc" rows="2" placeholder="Describe the task…"></textarea></div>
+        <div class="form-group"><label>Person Responsible</label><input id="fPerson1" placeholder="Name or email"/></div>
+        <div class="form-group"><label>Secondary Responsible</label><input id="fPerson2" placeholder="Name or email"/></div>
+        <div class="form-group"><label>Prerequisite Task #</label><input id="fPrereq" type="number" min="1" placeholder="e.g. 3"/></div>
+        <div class="form-group"><label>Status</label><select id="fStatus"><option>Not Started</option><option>In Progress</option><option>Completed</option><option>Blocked</option></select></div>
+        <div class="form-group"><label>Date</label><input id="fDate" type="date"/></div>
+        <div class="form-group"><label>Time</label><input id="fTime" type="time"/></div>
+        <div class="form-group full"><label>Estimated Duration</label><input id="fDuration" placeholder="e.g. 2 hours, 3 days…"/></div>
+        <div class="form-group full">
+          <label>Notification Group (emails)</label>
+          <div class="notif-tags" id="notifTags"></div>
+          <div class="notif-input-row">
+            <input id="notifEmailInput" type="email" placeholder="Add email address…" onkeydown="if(event.key==='Enter'){addNotifEmail();event.preventDefault();}"/>
+            <button onclick="addNotifEmail()">+ Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let tasks = [];
+let notifLog = [];
+let ejsCfg = {
+  publicKey:'', serviceId:'', templateId:'',
+  fromName:'TaskGrid', dueDaysBefore:2,
+  notifyOnCreate:true, notifyOnDelete:true, notifyOnStatus:true, notifyOnDue:true
+};
+let nextId = 1;
+let unreadCount = 0;
+let editingId = null;
+let currentFilter = '';
+let sortField = null;
+let sortAsc = true;
+let tempNotifEmails = [];
+let activePanel = null;
+let activeTab = 'log';
+
+const SK  = 'taskgrid_v1';
+const LK  = 'taskgrid_log_v1';
+const EK  = 'taskgrid_ejs_v1';
+
+const save    = () => localStorage.setItem(SK, JSON.stringify({tasks,nextId}));
+const saveLog = () => localStorage.setItem(LK, JSON.stringify(notifLog.slice(0,200)));
+const saveCfg = () => localStorage.setItem(EK, JSON.stringify(ejsCfg));
+
+function load() {
+  try { const r=localStorage.getItem(EK); if(r) ejsCfg={...ejsCfg,...JSON.parse(r)}; } catch(e){}
+  try { const r=localStorage.getItem(LK); if(r) notifLog=JSON.parse(r); } catch(e){}
+  const raw=localStorage.getItem(SK);
+  if(raw){
+    try{ const d=JSON.parse(raw); tasks=d.tasks||[]; nextId=d.nextId||(tasks.length?Math.max(...tasks.map(t=>t.id))+1:1); }catch(e){tasks=[];nextId=1;}
+  } else {
+    tasks=[
+      {id:1,desc:'Project kickoff meeting',      person1:'Alice Johnson', person2:'Bob Smith',    prereq:'',  status:'Completed',   date:'2025-06-01',time:'09:00',duration:'1 hour',  notifGroup:['alice@co.com','bob@co.com']},
+      {id:2,desc:'Define requirements document', person1:'Bob Smith',     person2:'',             prereq:'1', status:'Completed',   date:'2025-06-03',time:'10:00',duration:'3 days',  notifGroup:['bob@co.com']},
+      {id:3,desc:'Design system architecture',   person1:'Carol Lee',     person2:'Alice Johnson',prereq:'2', status:'In Progress', date:'2025-06-06',time:'09:30',duration:'5 days',  notifGroup:['carol@co.com','alice@co.com']},
+      {id:4,desc:'Set up CI/CD pipeline',        person1:'Dan Torres',    person2:'',             prereq:'3', status:'Not Started', date:'2025-06-13',time:'14:00',duration:'2 days',  notifGroup:['dan@co.com']},
+      {id:5,desc:'Develop API endpoints',         person1:'Carol Lee',     person2:'Dan Torres',   prereq:'3', status:'Not Started', date:'2025-06-13',time:'09:00',duration:'8 days',  notifGroup:['carol@co.com','dan@co.com']},
+      {id:6,desc:'Frontend UI implementation',   person1:'Eva Nguyen',    person2:'',             prereq:'3', status:'Blocked',     date:'2025-06-20',time:'09:00',duration:'10 days', notifGroup:['eva@co.com','alice@co.com']},
+      {id:7,desc:'Integration testing',          person1:'Bob Smith',     person2:'Eva Nguyen',   prereq:'5', status:'Not Started', date:'2025-06-25',time:'10:00',duration:'4 days',  notifGroup:['bob@co.com','eva@co.com']},
+      {id:8,desc:'User acceptance testing',      person1:'Alice Johnson', person2:'Carol Lee',    prereq:'7', status:'Not Started', date:'2025-07-01',time:'13:00',duration:'3 days',  notifGroup:['alice@co.com']},
+      {id:9,desc:'Production deployment',        person1:'Dan Torres',    person2:'Bob Smith',    prereq:'8', status:'Not Started', date:'2025-07-07',time:'08:00',duration:'4 hours', notifGroup:['dan@co.com','bob@co.com','alice@co.com']},
+    ];
+    nextId=10; save();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// EMAILJS ENGINE
+// ═══════════════════════════════════════════════════════════
+function initEmailJS() {
+  const dot=document.getElementById('ejsDot'), txt=document.getElementById('ejsStatusText');
+  if(ejsCfg.publicKey && ejsCfg.serviceId && ejsCfg.templateId){
+    try{ emailjs.init({publicKey:ejsCfg.publicKey}); }catch(e){}
+    dot.style.background='#2e9e5e'; txt.textContent='EmailJS: Connected';
+  } else {
+    dot.style.background='#d4a017'; txt.textContent='EmailJS: Not configured';
+  }
+}
+
+async function sendEmail(toArr, subject, task, triggerType, extra=''){
+  const logId = addLog({type:triggerType, taskId:task.id, taskDesc:task.desc, recipients:toArr, subject, status:'queued', note:'Sending…'});
+  if(!ejsCfg.publicKey||!ejsCfg.serviceId||!ejsCfg.templateId){
+    updateLog(logId,'failed','EmailJS not configured — open Settings to connect.');
+    toast('EmailJS not configured. Open ⚙️ Settings to connect.','warning');
+    return;
+  }
+  try{
+    await emailjs.send(ejsCfg.serviceId, ejsCfg.templateId, {
+      to_email:      toArr.join(','),
+      from_name:     ejsCfg.fromName||'TaskGrid',
+      subject,
+      task_number:   String(task.id).padStart(3,'0'),
+      task_desc:     task.desc,
+      task_status:   task.status,
+      task_person1:  task.person1||'—',
+      task_person2:  task.person2||'—',
+      task_date:     task.date||'—',
+      task_time:     task.time||'—',
+      task_duration: task.duration||'—',
+      task_prereq:   task.prereq?`#${task.prereq}`:'None',
+      trigger_type:  triggerType,
+      extra_message: extra,
+    });
+    updateLog(logId,'sent','Delivered successfully');
+    toast(`✓ Email sent to ${toArr.length} recipient(s)`);
+  }catch(err){
+    const msg=err?.text||err?.message||String(err);
+    updateLog(logId,'failed',msg);
+    toast(`Email failed: ${msg}`,'error');
+  }
+}
+
+// ── TRIGGERS ──
+function triggerCreated(t){
+  if(!ejsCfg.notifyOnCreate||!t.notifGroup.length) return;
+  sendEmail(t.notifGroup, `[TaskGrid] New Task #${String(t.id).padStart(3,'0')}: ${t.desc}`, t, 'Task Created', `Assigned to ${t.person1||'your team'}.`);
+}
+function triggerDeleted(t){
+  if(!ejsCfg.notifyOnDelete||!t.notifGroup.length) return;
+  sendEmail(t.notifGroup, `[TaskGrid] Task Deleted: #${String(t.id).padStart(3,'0')} — ${t.desc}`, t, 'Task Deleted', 'This task has been removed from the project.');
+}
+function triggerStatus(t, old){
+  if(!ejsCfg.notifyOnStatus||!t.notifGroup.length) return;
+  sendEmail(t.notifGroup, `[TaskGrid] Status Update #${String(t.id).padStart(3,'0')}: ${old} → ${t.status}`, t, 'Status Changed', `Status changed from "${old}" to "${t.status}".`);
+}
+function triggerDue(t, diff){
+  if(!ejsCfg.notifyOnDue||!t.notifGroup.length||t.status==='Completed') return;
+  const msg=diff===0?'This task is due TODAY.':diff<0?`OVERDUE by ${Math.abs(diff)} day(s).`:`Due in ${diff} day(s).`;
+  sendEmail(t.notifGroup, `[TaskGrid] Due ${diff<=0?'Alert':'Soon'}: #${String(t.id).padStart(3,'0')} — ${t.desc}`, t, 'Due Date Alert', msg);
+}
+
+function checkDueDates(){
+  if(!ejsCfg.notifyOnDue) return;
+  const now=new Date(); now.setHours(0,0,0,0);
+  const thresh=ejsCfg.dueDaysBefore||2;
+  const today=now.toISOString().slice(0,10);
+  tasks.forEach(t=>{
+    if(!t.date||t.status==='Completed') return;
+    const due=new Date(t.date); due.setHours(0,0,0,0);
+    const diff=Math.round((due-now)/86400000);
+    if(diff<=thresh && diff>-30){
+      const alreadySent=notifLog.some(e=>e.taskId===t.id&&e.type==='Due Date Alert'&&e.ts?.startsWith(today));
+      if(!alreadySent) triggerDue(t,diff);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// NOTIFICATION LOG
+// ═══════════════════════════════════════════════════════════
+function addLog({type,taskId,taskDesc,recipients,subject,status,note}){
+  const id=Date.now()+Math.random();
+  notifLog.unshift({id,type,taskId,taskDesc,recipients:[...recipients],subject,status,note,ts:new Date().toISOString(),read:false});
+  saveLog();
+  if(!activePanel||activeTab!=='log'){ unreadCount++; updateBadge(); }
+  if(activePanel&&activeTab==='log') renderPanel();
+  return id;
+}
+function updateLog(id,status,note){
+  const e=notifLog.find(e=>e.id===id);
+  if(e){e.status=status;e.note=note;saveLog();}
+  if(activePanel&&activeTab==='log') renderPanel();
+}
+function updateBadge(){
+  const b=document.getElementById('unreadBadge');
+  if(unreadCount>0){b.style.display='flex';b.textContent=unreadCount>99?'99+':unreadCount;}
+  else b.style.display='none';
+}
+function clearUnread(){ unreadCount=0; updateBadge(); notifLog.forEach(e=>e.read=true); saveLog(); }
+
+// ═══════════════════════════════════════════════════════════
+// RENDER TABLE
+// ═══════════════════════════════════════════════════════════
+function renderTable(){
+  const q=(document.getElementById('searchInput')?.value||'').toLowerCase();
+  const now=new Date(); now.setHours(0,0,0,0);
+  const warn=ejsCfg.dueDaysBefore||2;
+  let rows=tasks.filter(t=>{
+    if(currentFilter&&t.status!==currentFilter) return false;
+    if(q) return [t.desc,t.person1,t.person2,t.status,t.duration,String(t.id),t.notifGroup.join(' ')].join(' ').toLowerCase().includes(q);
+    return true;
+  });
+  if(sortField){
+    rows.sort((a,b)=>{
+      let va=a[sortField]||'',vb=b[sortField]||'';
+      if(sortField==='id'||sortField==='prereq'){va=Number(va)||0;vb=Number(vb)||0;}
+      return sortAsc?(va>vb?1:-1):(va<vb?1:-1);
+    });
+  }
+  const tbody=document.getElementById('taskBody');
+  tbody.innerHTML='';
+  rows.forEach((task,ri)=>{
+    const tr=document.createElement('tr');
+    tr.dataset.id=task.id;
+    if(task.date&&task.status!=='Completed'){
+      const due=new Date(task.date); due.setHours(0,0,0,0);
+      const diff=Math.round((due-now)/86400000);
+      if(diff<0) tr.classList.add('overdue');
+      else if(diff<=warn) tr.classList.add('due-soon');
+    }
+    const ns=task.notifGroup.join(', ');
+    tr.innerHTML=`
+      <td class="rn">${ri+1}</td>
+      <td><div class="cell-inner task-num">${String(task.id).padStart(3,'0')}</div></td>
+      <td><input class="cell-input" value="${esc(task.desc)}" onchange="updateField(${task.id},'desc',this.value)" onclick="selectCell(this)" onfocus="setFormula('${task.id}','desc',this.value)" placeholder="Task description…"/></td>
+      <td><input class="cell-input" value="${esc(task.person1)}" onchange="updateField(${task.id},'person1',this.value)" onclick="selectCell(this)" onfocus="setFormula('${task.id}','person1',this.value)" placeholder="Name or email…"/></td>
+      <td><input class="cell-input" value="${esc(task.person2)}" onchange="updateField(${task.id},'person2',this.value)" onclick="selectCell(this)" onfocus="setFormula('${task.id}','person2',this.value)" placeholder="Optional…"/></td>
+      <td><div class="cell-inner prereq" onclick="jumpToPrereq(${task.prereq||0})">${task.prereq?'#'+task.prereq:''}</div></td>
+      <td><div class="cell-inner" style="padding:0 4px;"><select class="cell-select" onchange="updateStatus(${task.id},this.value)">
+        <option ${task.status==='Not Started'?'selected':''}>Not Started</option>
+        <option ${task.status==='In Progress'?'selected':''}>In Progress</option>
+        <option ${task.status==='Completed'?'selected':''}>Completed</option>
+        <option ${task.status==='Blocked'?'selected':''}>Blocked</option>
+      </select></div></td>
+      <td><input class="cell-input" type="date" value="${esc(task.date)}" onchange="updateField(${task.id},'date',this.value)"/></td>
+      <td><input class="cell-input" type="time" value="${esc(task.time)}" onchange="updateField(${task.id},'time',this.value)"/></td>
+      <td><input class="cell-input" value="${esc(task.duration)}" onchange="updateField(${task.id},'duration',this.value)" placeholder="e.g. 2 hours"/></td>
+      <td><div class="cell-inner" style="cursor:pointer;color:#0563c1;text-decoration:underline;" onclick="openEditModal(${task.id},true)" title="${ns||'No notifications set'}">${ns?(ns.length>32?ns.slice(0,32)+'…':ns):'<span style=color:#bbb>—</span>'}</div></td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="openEditModal(${task.id})" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="icon-btn notif-btn" onclick="manualNotify(${task.id})" title="Send notification"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></button>
+        <button class="icon-btn delete" onclick="deleteTask(${task.id})" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+      </div></td>`;
+    tbody.appendChild(tr);
+  });
+  const ar=document.createElement('tr'); ar.className='add-row';
+  ar.innerHTML=`<td class="rn"></td><td colspan="11"><button class="add-row-btn" onclick="openAddModal()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>Click to add new task…</button></td>`;
+  tbody.appendChild(ar);
+  updateStatusBar();
+}
+
+function esc(s=''){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function updateStatusBar(){
+  document.getElementById('sbTotal').textContent=tasks.length;
+  document.getElementById('sbNS').textContent=tasks.filter(t=>t.status==='Not Started').length;
+  document.getElementById('sbIP').textContent=tasks.filter(t=>t.status==='In Progress').length;
+  document.getElementById('sbDone').textContent=tasks.filter(t=>t.status==='Completed').length;
+  document.getElementById('sbBL').textContent=tasks.filter(t=>t.status==='Blocked').length;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SIDE PANEL
+// ═══════════════════════════════════════════════════════════
+function togglePanel(tab){
+  if(activePanel&&activeTab===tab){
+    activePanel=null;
+    document.getElementById('sidePanel').classList.remove('open');
+    document.getElementById('logRibbonBtn').classList.remove('active');
+    document.getElementById('settingsRibbonBtn').classList.remove('active');
+    return;
+  }
+  activePanel=tab; activeTab=tab;
+  document.getElementById('sidePanel').classList.add('open');
+  document.getElementById('logRibbonBtn').classList.toggle('active',tab==='log');
+  document.getElementById('settingsRibbonBtn').classList.toggle('active',tab==='settings');
+  switchTab(tab);
+  if(tab==='log') clearUnread();
+}
+function switchTab(tab){
+  activeTab=tab;
+  document.getElementById('tabLog').classList.toggle('active',tab==='log');
+  document.getElementById('tabSettings').classList.toggle('active',tab==='settings');
+  if(tab==='log') clearUnread();
+  renderPanel();
+}
+function renderPanel(){
+  const body=document.getElementById('panelBody');
+  activeTab==='log' ? renderLogPanel(body) : renderSettingsPanel(body);
+}
+
+// LOG PANEL
+function renderLogPanel(c){
+  const icons={'Task Created':'🆕','Task Deleted':'🗑️','Status Changed':'🔄','Due Date Alert':'⏰','Manual':'📤','Test':'🧪'};
+  if(!notifLog.length){
+    c.innerHTML=`<div class="log-toolbar"><span>Notification History</span></div><div class="log-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>No notifications sent yet</div>`;
+    return;
+  }
+  c.innerHTML=`<div class="log-toolbar"><span>${notifLog.length} notification${notifLog.length!==1?'s':''}</span><button class="log-clear-btn" onclick="clearLog()">Clear all</button></div>`+
+    notifLog.map(e=>{
+      const ts=new Date(e.ts); const t=ts.toLocaleDateString()+' '+ts.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+      const ic=e.status==='sent'?'sent':e.status==='failed'?'failed':'queued';
+      return `<div class="log-entry"><div class="log-icon ${ic}">${icons[e.type]||'📧'}</div><div class="log-content">
+        <div class="log-title">${e.type}<span class="log-badge ${ic}">${e.status}</span></div>
+        <div class="log-meta">Task #${String(e.taskId).padStart(3,'0')}: ${(e.taskDesc||'').slice(0,50)}${(e.taskDesc||'').length>50?'…':''}</div>
+        <div class="log-meta">To: ${(e.recipients||[]).join(', ').slice(0,60)||'—'}</div>
+        ${e.note?`<div class="log-meta" style="color:${e.status==='failed'?'#c42b1c':'inherit'}">${e.note}</div>`:''}
+        <div class="log-time">${t}</div>
+      </div></div>`;
+    }).join('');
+}
+function clearLog(){ if(!confirm('Clear all notification history?')) return; notifLog=[]; saveLog(); renderPanel(); toast('Log cleared.'); }
+
+// SETTINGS PANEL
+function renderSettingsPanel(c){
+  const ok=!!(ejsCfg.publicKey&&ejsCfg.serviceId&&ejsCfg.templateId);
+  c.innerHTML=`
+  <div class="settings-section">
+    <h3>EmailJS Connection</h3>
+    <div class="ejs-status ${ok?'ok':'warn'}">
+      ${ok?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Connected — emails will be sent via EmailJS':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Not configured — enter credentials below'}
+    </div>
+    <div class="settings-row"><label>Public Key</label><input id="sPK" value="${esc(ejsCfg.publicKey)}" placeholder="user_xxxxxxxxxxxxxxxx"/><span class="hint">Found in <a href="https://dashboard.emailjs.com/admin/account" target="_blank">EmailJS → Account → API Keys</a></span></div>
+    <div class="settings-row"><label>Service ID</label><input id="sSID" value="${esc(ejsCfg.serviceId)}" placeholder="service_xxxxxxx"/><span class="hint">Found under <a href="https://dashboard.emailjs.com/admin" target="_blank">Email Services</a></span></div>
+    <div class="settings-row"><label>Template ID</label><input id="sTID" value="${esc(ejsCfg.templateId)}" placeholder="template_xxxxxxx"/><span class="hint">Found under <a href="https://dashboard.emailjs.com/admin/templates" target="_blank">Email Templates</a></span></div>
+    <div class="settings-row"><label>Sender Display Name</label><input id="sFN" value="${esc(ejsCfg.fromName)}" placeholder="TaskGrid"/></div>
+    <button class="settings-save-btn" onclick="saveEjsCfg()">Save &amp; Connect</button>
+  </div>
+  <div class="settings-section">
+    <h3>Notification Triggers</h3>
+    <div class="toggle-row"><label>Notify when task is created</label><div class="toggle-sw ${ejsCfg.notifyOnCreate?'on':''}" onclick="toggleCfg('notifyOnCreate',this)"></div></div>
+    <div class="toggle-row"><label>Notify when task is deleted</label><div class="toggle-sw ${ejsCfg.notifyOnDelete?'on':''}" onclick="toggleCfg('notifyOnDelete',this)"></div></div>
+    <div class="toggle-row"><label>Notify when status changes</label><div class="toggle-sw ${ejsCfg.notifyOnStatus?'on':''}" onclick="toggleCfg('notifyOnStatus',this)"></div></div>
+    <div class="toggle-row"><label>Notify when due date approaching</label><div class="toggle-sw ${ejsCfg.notifyOnDue?'on':''}" onclick="toggleCfg('notifyOnDue',this)"></div></div>
+    <div class="settings-row" style="margin-top:10px;"><label>Days before due to send alert</label><input id="sDD" type="number" min="0" max="30" value="${ejsCfg.dueDaysBefore}" style="width:80px"/></div>
+    <button class="settings-save-btn secondary" onclick="saveTriggerCfg()">Save Trigger Settings</button>
+  </div>
+  <div class="settings-section">
+    <h3>Template Variables Reference</h3>
+    <div class="code-box">{{to_email}} — recipient list<br>{{from_name}} — sender display name<br>{{subject}} — auto-generated subject<br>{{task_number}} — zero-padded ID (e.g. 003)<br>{{task_desc}} — task description<br>{{task_status}} — current status<br>{{task_person1}} — primary owner<br>{{task_person2}} — secondary owner<br>{{task_date}} / {{task_time}}<br>{{task_duration}} — estimated duration<br>{{task_prereq}} — prerequisite task #<br>{{trigger_type}} — what triggered this<br>{{extra_message}} — contextual details</div>
+  </div>
+  <div class="settings-section">
+    <h3>Send a Test Email</h3>
+    <div class="settings-row"><label>Test Recipient Email</label><input id="sTestE" type="email" placeholder="you@example.com"/></div>
+    <button class="test-btn" onclick="sendTestEmail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>Send Test Email</button>
+  </div>`;
+}
+
+function saveEjsCfg(){
+  ejsCfg.publicKey  = document.getElementById('sPK').value.trim();
+  ejsCfg.serviceId  = document.getElementById('sSID').value.trim();
+  ejsCfg.templateId = document.getElementById('sTID').value.trim();
+  ejsCfg.fromName   = document.getElementById('sFN').value.trim()||'TaskGrid';
+  saveCfg(); initEmailJS(); renderPanel(); toast('EmailJS settings saved.');
+}
+function saveTriggerCfg(){
+  ejsCfg.dueDaysBefore=parseInt(document.getElementById('sDD').value)||2;
+  saveCfg(); renderPanel(); toast('Trigger settings saved.');
+}
+function toggleCfg(key,el){ ejsCfg[key]=!ejsCfg[key]; el.classList.toggle('on',ejsCfg[key]); saveCfg(); }
+
+async function sendTestEmail(){
+  const te=document.getElementById('sTestE').value.trim();
+  if(!te){ toast('Enter a test email address.','warning'); return; }
+  const fake={id:0,desc:'Test email — connection verified',person1:'Test User',person2:'',prereq:'',status:'In Progress',date:new Date().toISOString().slice(0,10),time:'12:00',duration:'N/A',notifGroup:[te]};
+  await sendEmail([te],'[TaskGrid] Test Email — Connection Verified',fake,'Test','If you received this, EmailJS is working correctly!');
+}
+
+// ═══════════════════════════════════════════════════════════
+// CELL INTERACTIONS
+// ═══════════════════════════════════════════════════════════
+function selectCell(el){ document.querySelectorAll('.selected-cell').forEach(c=>c.classList.remove('selected-cell')); el.closest('td').classList.add('selected-cell'); }
+function setFormula(id,field,val){ document.getElementById('cellRef').textContent=`T${String(id).padStart(3,'0')}`; document.getElementById('formulaContent').textContent=val||'—'; }
+function updateField(id,field,value){ const t=tasks.find(t=>t.id===id); if(t){t[field]=value;save();updateStatusBar();} }
+function updateStatus(id,ns){
+  const t=tasks.find(t=>t.id===id); if(!t) return;
+  const old=t.status; if(old===ns) return;
+  t.status=ns; save(); renderTable(); triggerStatus(t,old);
+}
+function jumpToPrereq(pid){
+  if(!pid) return;
+  const row=document.querySelector(`tr[data-id="${pid}"]`);
+  if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('prereq-highlight');setTimeout(()=>row.classList.remove('prereq-highlight'),1200);}
+  else toast(`Task #${pid} not found (may be filtered).`,'info');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SORT / FILTER
+// ═══════════════════════════════════════════════════════════
+function sortBy(f){
+  if(sortField===f) sortAsc=!sortAsc; else{sortField=f;sortAsc=true;}
+  document.querySelectorAll('[id^=sort-]').forEach(el=>el.textContent='⇅');
+  const ic=document.getElementById(`sort-${f}`); if(ic) ic.textContent=sortAsc?'↑':'↓';
+  renderTable();
+}
+function filterByStatus(s){
+  currentFilter=s;
+  ['fAll','fNS','fIP','fDone','fBL'].forEach(id=>document.getElementById(id)?.classList.remove('active'));
+  const map={'':'fAll','Not Started':'fNS','In Progress':'fIP','Completed':'fDone','Blocked':'fBL'};
+  document.getElementById(map[s])?.classList.add('active');
+  renderTable();
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════════
+function openAddModal(){
+  editingId=null; tempNotifEmails=[];
+  document.getElementById('modalTitle').textContent='New Task';
+  ['fDesc','fPerson1','fPerson2','fDuration','notifEmailInput'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fPrereq').value=''; document.getElementById('fStatus').value='Not Started';
+  document.getElementById('fDate').value=''; document.getElementById('fTime').value='';
+  renderNotifTags(); document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('fDesc').focus(),200);
+}
+function openEditModal(id,fn=false){
+  const t=tasks.find(t=>t.id===id); if(!t) return;
+  editingId=id; tempNotifEmails=[...t.notifGroup];
+  document.getElementById('modalTitle').textContent=`Edit Task #${String(id).padStart(3,'0')}`;
+  document.getElementById('fDesc').value=t.desc; document.getElementById('fPerson1').value=t.person1;
+  document.getElementById('fPerson2').value=t.person2; document.getElementById('fPrereq').value=t.prereq;
+  document.getElementById('fStatus').value=t.status; document.getElementById('fDate').value=t.date;
+  document.getElementById('fTime').value=t.time; document.getElementById('fDuration').value=t.duration;
+  document.getElementById('notifEmailInput').value='';
+  renderNotifTags(); document.getElementById('modalOverlay').classList.add('open');
+  if(fn) setTimeout(()=>document.getElementById('notifEmailInput').focus(),200);
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+function saveTask(){
+  const desc=document.getElementById('fDesc').value.trim(); if(!desc){document.getElementById('fDesc').focus();return;}
+  const ns=document.getElementById('fStatus').value;
+  const data={desc,person1:document.getElementById('fPerson1').value.trim(),person2:document.getElementById('fPerson2').value.trim(),prereq:document.getElementById('fPrereq').value.trim(),status:ns,date:document.getElementById('fDate').value,time:document.getElementById('fTime').value,duration:document.getElementById('fDuration').value.trim(),notifGroup:[...tempNotifEmails]};
+  if(editingId){
+    const t=tasks.find(t=>t.id===editingId); const old=t.status; Object.assign(t,data); save();
+    if(old!==ns) triggerStatus(t,old);
+  } else {
+    const nt={id:nextId++,...data}; tasks.push(nt); save(); triggerCreated(nt);
+  }
+  closeModal(); renderTable();
+}
+function renderNotifTags(){ document.getElementById('notifTags').innerHTML=tempNotifEmails.map((em,i)=>`<div class="notif-tag">${em}<button onclick="removeNotifEmail(${i})">×</button></div>`).join(''); }
+function addNotifEmail(){ const inp=document.getElementById('notifEmailInput'); const e=inp.value.trim(); if(e&&!tempNotifEmails.includes(e)){tempNotifEmails.push(e);renderNotifTags();} inp.value='';inp.focus(); }
+function removeNotifEmail(i){ tempNotifEmails.splice(i,1); renderNotifTags(); }
+
+// ═══════════════════════════════════════════════════════════
+// DELETE / SELECT
+// ═══════════════════════════════════════════════════════════
+function deleteTask(id){
+  const t=tasks.find(t=>t.id===id); if(!t) return;
+  if(!confirm(`Delete task #${String(id).padStart(3,'0')}?`)) return;
+  triggerDeleted(t); tasks=tasks.filter(t=>t.id!==id); save(); renderTable(); toast('Task deleted.');
+}
+function deleteSelectedRows(){
+  const sel=document.querySelectorAll('tbody tr.selected'); if(!sel.length){toast('No rows selected.','info');return;}
+  const ids=[...sel].map(r=>Number(r.dataset.id));
+  if(!confirm(`Delete ${ids.length} task(s)?`)) return;
+  tasks.filter(t=>ids.includes(t.id)).forEach(t=>triggerDeleted(t));
+  tasks=tasks.filter(t=>!ids.includes(t.id)); save(); renderTable(); toast(`${ids.length} task(s) deleted.`);
+}
+document.addEventListener('click',e=>{
+  const tr=e.target.closest('tbody tr[data-id]'); if(!tr) return;
+  if(e.target.closest('input,select,button,.prereq,.cell-inner[style]')) return;
+  if(e.ctrlKey||e.metaKey) tr.classList.toggle('selected');
+  else{document.querySelectorAll('tbody tr.selected').forEach(r=>r.classList.remove('selected'));tr.classList.add('selected');}
+});
+
+// ═══════════════════════════════════════════════════════════
+// MANUAL NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════
+function manualNotify(id){
+  const t=tasks.find(t=>t.id===id); if(!t) return;
+  if(!t.notifGroup.length){toast('No notification group set for this task.','info');return;}
+  sendEmail(t.notifGroup,`[TaskGrid] Task Update: #${String(t.id).padStart(3,'0')} — ${t.desc}`,t,'Manual','Manual notification triggered from TaskGrid.');
+}
+async function notifyAll(){
+  const wg=tasks.filter(t=>t.notifGroup.length&&t.status!=='Completed');
+  if(!wg.length){toast('No active tasks with notification groups.','info');return;}
+  if(!confirm(`Send notifications for ${wg.length} active task(s)?`)) return;
+  for(const t of wg){
+    await sendEmail(t.notifGroup,`[TaskGrid] Status — Task #${String(t.id).padStart(3,'0')}: ${t.status}`,t,'Manual','Bulk status notification.');
+    await new Promise(r=>setTimeout(r,250));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════
+function exportCSV(){
+  const h=['Task #','Description','Person Responsible','Secondary Responsible','Prereq #','Status','Date','Time','Est. Duration','Notification Group'];
+  const rows=tasks.map(t=>[t.id,t.desc,t.person1,t.person2,t.prereq,t.status,t.date,t.time,t.duration,t.notifGroup.join('; ')].map(v=>`"${String(v||'').replace(/"/g,'""')}"`));
+  const csv=[h.join(','),...rows.map(r=>r.join(','))].join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`taskgrid_${new Date().toISOString().slice(0,10)}.csv`; a.click(); toast('CSV exported.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function toast(msg,type=''){
+  const c=document.getElementById('toastContainer'); const el=document.createElement('div');
+  el.className=`toast${type?' '+type:''}`; el.textContent=msg; c.appendChild(el);
+  setTimeout(()=>el.remove(),3100);
+}
+
+// ═══════════════════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='n'){e.preventDefault();openAddModal();}
+  if(e.key==='Escape') closeModal();
+  if((e.ctrlKey||e.metaKey)&&e.key==='e'){e.preventDefault();exportCSV();}
+  if((e.ctrlKey||e.metaKey)&&e.key==='l'){e.preventDefault();togglePanel('log');}
+});
+document.getElementById('modalOverlay').addEventListener('click',e=>{ if(e.target===document.getElementById('modalOverlay')) closeModal(); });
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+load();
+initEmailJS();
+filterByStatus('');
+renderTable();
+checkDueDates();
+setInterval(checkDueDates, 60*60*1000);
+</script>
+</body>
+</html>
